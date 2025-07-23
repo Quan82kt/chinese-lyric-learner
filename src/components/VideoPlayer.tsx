@@ -16,7 +16,8 @@ const VideoPlayer = ({ videoId, currentTime, onTimeUpdate }: VideoPlayerProps) =
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
-    if (currentTime !== undefined && iframeRef.current) {
+    if (currentTime !== undefined && iframeRef.current && Math.abs(currentTime - getCurrentTime()) > 1) {
+      console.log('Seeking to time:', currentTime);
       // Sync with external time updates
       const message = {
         event: 'command',
@@ -24,8 +25,26 @@ const VideoPlayer = ({ videoId, currentTime, onTimeUpdate }: VideoPlayerProps) =
         args: [currentTime, true]
       };
       iframeRef.current.contentWindow?.postMessage(JSON.stringify(message), '*');
+      
+      // Also trigger play after seeking
+      setTimeout(() => {
+        if (iframeRef.current) {
+          const playMessage = {
+            event: 'command',
+            func: 'playVideo',
+            args: []
+          };
+          iframeRef.current.contentWindow?.postMessage(JSON.stringify(playMessage), '*');
+          setIsPlaying(true);
+        }
+      }, 100);
     }
   }, [currentTime]);
+
+  const getCurrentTime = () => {
+    // This would need YouTube API integration to get actual current time
+    return 0;
+  };
 
   const togglePlay = () => {
     if (iframeRef.current) {
@@ -60,11 +79,27 @@ const VideoPlayer = ({ videoId, currentTime, onTimeUpdate }: VideoPlayerProps) =
         <div className="relative aspect-video">
           <iframe
             ref={iframeRef}
-            src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1&rel=0`}
+            src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1&rel=0&autoplay=0&controls=1&start=0`}
             className="w-full h-full"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             title="YouTube video player"
+            onLoad={() => {
+              console.log('YouTube iframe loaded');
+              // Listen for YouTube player state changes
+              window.addEventListener('message', (event) => {
+                if (event.data && typeof event.data === 'string') {
+                  try {
+                    const data = JSON.parse(event.data);
+                    if (data.event === 'video-progress' && onTimeUpdate) {
+                      onTimeUpdate(data.info?.currentTime || 0);
+                    }
+                  } catch (e) {
+                    // Ignore non-JSON messages
+                  }
+                }
+              });
+            }}
           />
           
           {/* Custom controls overlay */}
