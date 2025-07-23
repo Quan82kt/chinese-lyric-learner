@@ -44,7 +44,7 @@ export default async function handler(req, res) {
         'X-Title': 'Chinese Lyric Learner'
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-chat', // Good for Chinese language tasks
+        model: 'deepseek/deepseek-r1-0528:free', // Good for Chinese language tasks
         messages: messages,
         temperature: 0.3, // Lower temperature for more consistent translations
         max_tokens: 4000
